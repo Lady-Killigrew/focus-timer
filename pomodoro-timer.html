@@ -190,6 +190,49 @@
     margin-top:4px;
     line-height:1.5;
   }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:14px;
+    table-layout:fixed;
+  }
+  th:first-child, td:first-child{ width:56%; }
+  th:nth-child(2), td:nth-child(2){ width:24%; }
+  th:last-child, td:last-child{ width:20%; }
+  th{
+    text-align:left;
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    padding:0 8px 8px 0;
+    font-weight:500;
+  }
+  td{
+    padding:4px 8px 4px 0;
+    vertical-align:middle;
+  }
+  td input[type=text]{
+    padding:7px 8px;
+    font-size:13px;
+    font-family:'Inter', sans-serif;
+    width:100%;
+  }
+  td.actions{
+    white-space:nowrap;
+    text-align:right;
+    padding-right:0;
+  }
+  .row-btn{
+    padding:5px 9px;
+    font-size:11px;
+    border-radius:6px;
+    margin-left:4px;
+  }
+  .row-btn.delete{
+    border-color:#7a4a3a;
+    color:#d99a8a;
+  }
   .music-status{
     font-size:12px;
     color:var(--muted);
@@ -261,6 +304,22 @@
       <span id="musicStatusText">No track playing</span>
       <button id="retryMusicBtn" style="padding:4px 12px; font-size:12px;">Retry</button>
     </div>
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2>My playlist</h2>
+    <p class="hint" style="margin-top:0;">Keep a running list of tracks you like. Click "Use as work" or "Use as break" to drop a link straight into the fields above. Saved automatically in this browser.</p>
+    <table id="playlistTable">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Description</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="playlistBody"></tbody>
+    </table>
+    <button id="addRowBtn" style="margin-top:12px; font-size:13px; padding:8px 18px;">+ Add track</button>
   </div>
 </div>
 
@@ -474,6 +533,80 @@
   document.getElementById('retryMusicBtn').addEventListener('click', function(){
     playCurrentPhaseTrack();
   });
+
+  // --- Playlist table ---
+  const playlistBody = document.getElementById('playlistBody');
+  const addRowBtn = document.getElementById('addRowBtn');
+  const STORAGE_KEY = 'focusTimerPlaylist';
+
+  function loadPlaylist(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    } catch(e){}
+    return [];
+  }
+
+  function savePlaylist(rows){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch(e){}
+  }
+
+  function collectRows(){
+    return Array.from(playlistBody.querySelectorAll('tr')).map(function(tr){
+      return {
+        url: tr.querySelector('.url-input').value,
+        desc: tr.querySelector('.desc-input').value
+      };
+    });
+  }
+
+  function persist(){
+    savePlaylist(collectRows());
+  }
+
+  function addRow(data){
+    data = data || { url:'', desc:'' };
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="text" class="url-input" placeholder="https://youtube.com/watch?v=..."></td>' +
+      '<td><input type="text" class="desc-input" placeholder="e.g. Lo-fi for deep focus"></td>' +
+      '<td class="actions">' +
+        '<button class="row-btn use-work">Use as work</button>' +
+        '<button class="row-btn use-break">Use as break</button>' +
+        '<button class="row-btn delete">Remove</button>' +
+      '</td>';
+    tr.querySelector('.url-input').value = data.url;
+    tr.querySelector('.desc-input').value = data.desc;
+
+    tr.querySelector('.url-input').addEventListener('input', persist);
+    tr.querySelector('.desc-input').addEventListener('input', persist);
+    tr.querySelector('.use-work').addEventListener('click', function(){
+      workMusicInput.value = tr.querySelector('.url-input').value;
+      if(running) playCurrentPhaseTrack();
+    });
+    tr.querySelector('.use-break').addEventListener('click', function(){
+      breakMusicInput.value = tr.querySelector('.url-input').value;
+      if(running) playCurrentPhaseTrack();
+    });
+    tr.querySelector('.delete').addEventListener('click', function(){
+      tr.remove();
+      persist();
+    });
+
+    playlistBody.appendChild(tr);
+  }
+
+  addRowBtn.addEventListener('click', function(){
+    addRow();
+    persist();
+  });
+
+  const savedRows = loadPlaylist();
+  if(savedRows.length){
+    savedRows.forEach(addRow);
+  } else {
+    addRow();
+  }
 
   updateDisplay();
 })();
