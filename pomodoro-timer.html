@@ -415,6 +415,7 @@
   };
 
   let currentLoadedId = null;
+  const phaseTrackState = { work: { id: null, pos: 0 }, break: { id: null, pos: 0 } };
 
   function loadAndPlay(videoId){
     if(!videoId){
@@ -431,6 +432,11 @@
     } else {
       ytPlayer.loadVideoById(videoId);
       currentLoadedId = videoId;
+      // if we've played this exact video for this phase before, pick up where it left off
+      const saved = phaseTrackState[phase];
+      if(saved && saved.id === videoId && saved.pos > 0){
+        ytPlayer.seekTo(saved.pos, true);
+      }
     }
     ytPlayer.unMute();
     ytPlayer.setVolume(100);
@@ -469,6 +475,11 @@
   }
 
   function switchPhase(){
+    // remember exactly where the ending phase's track was, so it can pick up
+    // from there next time this phase comes around, instead of restarting
+    if(ytPlayer && ytReady && ytPlayer.getCurrentTime && currentLoadedId){
+      phaseTrackState[phase] = { id: currentLoadedId, pos: ytPlayer.getCurrentTime() };
+    }
     if(phase === 'work'){
       phase = 'break';
     } else {
@@ -507,6 +518,8 @@
     totalSeconds = parseInt(workMinInput.value || '25', 10) * 60;
     secondsLeft = totalSeconds;
     startBtn.textContent = 'Start';
+    phaseTrackState.work = { id: null, pos: 0 };
+    phaseTrackState.break = { id: null, pos: 0 };
     updateDisplay();
     pauseMusic();
   }
